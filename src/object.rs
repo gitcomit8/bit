@@ -51,6 +51,33 @@ impl Tree {
     pub fn insert(&mut self, name: String, hash: String) {
         self.entries.insert(name, hash);
     }
+
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Hasher::new();
+        // Sort entries for consistent hashing
+        let mut sorted_entries: Vec<(&String, &String)> = self.entries.iter().collect();
+        sorted_entries.sort_by_key(|(name, _)| *name);
+        for (name, hash) in sorted_entries {
+            hasher.update(name.as_bytes());
+            hasher.update(hash.as_bytes());
+        }
+        hasher.finalize().to_hex().to_string()
+    }
+
+    pub fn store(&self, base_path: &PathBuf) -> io::Result<String> {
+        let hash = self.calculate_hash();
+        let object_path = base_path.join("objects").join(&hash);
+        let serialized = serde_json::to_string(self)?;
+        fs::write(object_path, serialized)?;
+        Ok(hash)
+    }
+
+    pub fn load(base_path: &PathBuf, hash: &str) -> io::Result<Self> {
+        let object_path = base_path.join("objects").join(hash);
+        let serialized = fs::read_to_string(object_path)?;
+        let tree = serde_json::from_str(&serialized)?;
+        Ok(tree)
+    }
 }
 
 //Represents a snapshot in time
@@ -70,5 +97,29 @@ impl Commit {
             tree,
             commit_hash,
         }
+    }
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Hasher::new();
+        if let Some(parent) = &self.parent {
+            hasher.update(parent.as_bytes());
+        }
+        hasher.update(&self.timestamp.to_be_bytes());
+        hasher.update(self.tree.as_bytes());
+        hasher.finalize().to_hex().to_string()
+    }
+
+    pub fn store(&self, base_path: &PathBuf) -> io::Result<String> {
+        let hash = self.calculate_hash();
+        let object_path = base_path.join("objects").join(&hash);
+        let serialized = serde_json::to_string(self).unwrap();
+        fs::write(object_path, serialized)?;
+        Ok(hash)
+    }
+
+    pub fn load(base_path: &PathBuf, hash: &str) -> io::Result<Self> {
+        let object_path = base_path.join("objects").join(hash);
+        let serialized = fs::read_to_string(object_path)?;
+        let commit = serde_json::from_str(&serialized).unwrap();
+        Ok(commit)
     }
 }
