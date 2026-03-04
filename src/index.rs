@@ -21,6 +21,10 @@ impl Index {
         self.entries.get(filename)
     }
 
+    pub fn remove(&mut self, filename: &str) -> bool {
+        self.entries.remove(filename).is_some()
+    }
+
     pub fn load(base_path: &PathBuf) -> io::Result<Self> {
         let index_path = base_path.join("index");
         if index_path.exists() {

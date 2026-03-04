@@ -24,7 +24,7 @@ impl Blob {
     pub fn store(&self, base_path: &PathBuf) -> io::Result<String> {
         let hash = self.calculate_hash();
         let object_path = base_path.join("objects").join(&hash);
-        fs::write(object_path, &self.content);
+        fs::write(object_path, &self.content)?;
         Ok(hash)
     }
 
@@ -87,15 +87,23 @@ pub struct Commit {
     pub timestamp: i64,
     pub tree: String,        //Hash of the root tree
     pub commit_hash: String, //Hash of this commit
+    pub message: String,
 }
 
 impl Commit {
-    pub fn new(parent: Option<String>, timestamp: i64, tree: String, commit_hash: String) -> Self {
+    pub fn new(
+        parent: Option<String>,
+        timestamp: i64,
+        tree: String,
+        commit_hash: String,
+        message: String,
+    ) -> Self {
         Commit {
             parent,
             timestamp,
             tree,
             commit_hash,
+            message,
         }
     }
     pub fn calculate_hash(&self) -> String {
@@ -105,6 +113,7 @@ impl Commit {
         }
         hasher.update(&self.timestamp.to_be_bytes());
         hasher.update(self.tree.as_bytes());
+        hasher.update(self.message.as_bytes());
         hasher.finalize().to_hex().to_string()
     }
 
